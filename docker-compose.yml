@@ -1,0 +1,37 @@
+version: "3.3"
+
+services:
+
+  traefik:
+    image: "traefik:latest"
+    container_name: "traefik"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.myresolver.acme.email=<YOUR_EMAIL>"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "443:443"
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  remarkable:
+    image: "ddvk/rmfakecloud"
+    container_name: "rmfakecloud"
+    restart: unless-stopped
+    env_file:
+      - env
+    volumes:
+      - ./data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.remarkable.rule=Host(`<subdomain.domain.tld>`)"
+      - "traefik.http.routers.remarkable.entrypoints=websecure"
+      - "traefik.http.routers.remarkable.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.remarkable-filter-ip.ipwhitelist.sourcerange=<XXX.XXX.XXX.XXX/CIDR>"
+      - "traefik.http.routers.remarkable.middlewares=remarkable-filter-ip"
